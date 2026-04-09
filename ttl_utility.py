@@ -10,14 +10,13 @@ class TTLUtilityApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Cellular TTL Utility")
-        self.root.geometry("500x480")
+        self.root.geometry("500x520")
         
         self.os_type = platform.system()
         self.is_admin = self.check_admin()
         
         self.setup_ui()
-        self.log("Cellular TTL Manager (Verizon/T-Mobile)")
-        self.log("Vibe coded by Gemini CLI.")
+        self.log("Universal Cellular TTL Manager (Vibe Coded)")
         self.log(f"Detected OS: {self.os_type}")
         self.log(f"Admin Privileges: {'Yes' if self.is_admin else 'No'}")
         
@@ -62,10 +61,10 @@ class TTLUtilityApp:
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=10)
         
-        tk.Button(btn_frame, text="Apply Target TTL", command=self.apply_custom_ttl, width=20, bg="#4CAF50", fg="white").grid(row=0, column=0, padx=5, pady=5)
-        tk.Button(btn_frame, text="Reset to Default", command=self.reset_ttl, width=20).grid(row=0, column=1, padx=5, pady=5)
-        tk.Button(btn_frame, text="Test Connection (Ping)", command=self.test_connection, width=20, bg="#2196F3", fg="white").grid(row=1, column=0, padx=5, pady=5)
-        tk.Button(btn_frame, text="Elevate to Admin", command=self.elevate, width=20).grid(row=1, column=1, padx=5, pady=5)
+        tk.Button(btn_frame, text="Apply Target TTL (IPv4+v6)", command=self.apply_custom_ttl, width=25, bg="#4CAF50", fg="white").grid(row=0, column=0, columnspan=2, padx=5, pady=5)
+        tk.Button(btn_frame, text="Reset to Default", command=self.reset_ttl, width=20).grid(row=1, column=0, padx=5, pady=5)
+        tk.Button(btn_frame, text="Test Connection (Ping)", command=self.test_connection, width=20, bg="#2196F3", fg="white").grid(row=1, column=1, padx=5, pady=5)
+        tk.Button(btn_frame, text="Elevate to Admin", command=self.elevate, width=20).grid(row=2, column=0, columnspan=2, pady=5)
 
         # Log Output
         tk.Label(self.root, text="Activity Log:").pack(anchor="w", padx=20)
@@ -79,7 +78,8 @@ class TTLUtilityApp:
             "Use this if you are on T-Mobile to make your computer look like a phone.\n\n"
             "65 (Verizon/Visible): Verizon often expects a 'hop' from the phone. "
             "Starting at 65 ensures the signal reaches them at 64.\n\n"
-            "Tip: If one doesn't work, try the other!"
+            "Tip: If one doesn't work, try the other!\n"
+            "(This app now sets both IPv4 and IPv6 settings simultaneously.)"
         )
         messagebox.showinfo("Carrier TTL Guide", help_text)
 
@@ -109,22 +109,29 @@ class TTLUtilityApp:
                 self.elevate()
             return
 
-        self.log(f"Setting TTL to {value}...")
+        self.log(f"Setting IPv4 and IPv6 TTL to {value}...")
+        cmds = []
         if self.os_type == "Windows":
-            cmd = f"netsh int ipv4 set global defaultcurhoplimit={value} store=persistent"
+            cmds.append(f"netsh int ipv4 set global defaultcurhoplimit={value} store=persistent")
+            cmds.append(f"netsh int ipv6 set global defaultcurhoplimit={value} store=persistent")
         elif self.os_type == "Darwin":
-            cmd = f"sysctl -w net.inet.ip.ttl={value}"
+            cmds.append(f"sysctl -w net.inet.ip.ttl={value}")
+            cmds.append(f"sysctl -w net.inet6.ip6.hlim={value}")
         elif self.os_type == "Linux":
-            cmd = f"sysctl -w net.ipv4.ip_default_ttl={value}"
+            cmds.append(f"sysctl -w net.ipv4.ip_default_ttl={value}")
+            cmds.append(f"sysctl -w net.ipv6.conf.all.hop_limit={value}")
+            cmds.append(f"sysctl -w net.ipv6.conf.default.hop_limit={value}")
         else:
             self.log("Unsupported OS for this operation.")
             return
 
-        if self.run_command(cmd) is not None:
-            self.log(f"Successfully set TTL to {value}.")
-
-    def set_ttl_65(self):
-        self.set_ttl("65")
+        success = True
+        for cmd in cmds:
+            if self.run_command(cmd) is None:
+                success = False
+        
+        if success:
+            self.log(f"Successfully applied TTL {value} to all stacks.")
 
     def reset_ttl(self):
         if not self.is_admin:
@@ -132,17 +139,8 @@ class TTLUtilityApp:
             return
 
         default_ttl = 128 if self.os_type == "Windows" else 64
-        self.log(f"Resetting TTL to default ({default_ttl})...")
-        
-        if self.os_type == "Windows":
-            cmd = f"netsh int ipv4 set global defaultcurhoplimit={default_ttl} store=persistent"
-        elif self.os_type == "Darwin":
-            cmd = f"sysctl -w net.inet.ip.ttl={default_ttl}"
-        elif self.os_type == "Linux":
-            cmd = f"sysctl -w net.ipv4.ip_default_ttl={default_ttl}"
-        
-        if self.run_command(cmd) is not None:
-            self.log(f"Successfully reset TTL to {default_ttl}.")
+        self.log(f"Resetting IPv4 and IPv6 to default ({default_ttl})...")
+        self.set_ttl(default_ttl)
 
     def test_connection(self):
         self.log("Testing connection (pinging localhost)...")
@@ -150,12 +148,10 @@ class TTLUtilityApp:
         output = self.run_command(ping_cmd)
         
         if output:
-            # Parse TTL from output using Regex (case insensitive)
             ttl_match = re.search(r"ttl=(\d+)", output, re.IGNORECASE)
             if ttl_match:
                 current_ttl = ttl_match.group(1)
                 self.log(f"Test Successful! Current Active TTL: {current_ttl}")
-                # We show confirmation if it matches the target in the entry
                 target = self.ttl_entry.get().strip()
                 if current_ttl == target:
                     self.log(f"CONFIRMED: Your connection is using the custom TTL ({target}).")
