@@ -127,16 +127,14 @@ class TTLUtilityApp:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
             return result.stdout.strip()
         except Exception as e:
-            # Only log error if not a harmless warning
             err = str(e)
             if "The operation was successful" not in err:
-                self.log(f"Command Error: {err.split(':')[-1]}")
+                self.log(f"Error executing command: {cmd}")
             return None
 
     def set_windows_registry(self, value):
         try:
             import winreg
-            # We must use KEY_ALL_ACCESS to create the key if it doesn't exist
             keys = [
                 (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"),
                 (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters")
@@ -144,7 +142,7 @@ class TTLUtilityApp:
             for root_key, sub_key in keys:
                 with winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE) as key:
                     winreg.SetValueEx(key, "DefaultTTL", 0, winreg.REG_DWORD, int(value))
-            self.log("Windows Registry 'Double-Tap' complete.")
+            self.log("Windows Registry keys updated.")
             return True
         except Exception as e:
             self.log(f"Registry Error: {str(e)}")
@@ -158,14 +156,11 @@ class TTLUtilityApp:
 
         self.log(f"Unlocking Infinite Plan (TTL {val})...")
         if platform.system() == "Windows":
-            # Aggressive Triple-Tap for Windows: 
-            # 1. Default Hop Limit (Persistence)
-            # 2. Current Hop Limit (Immediate effect)
-            # 3. Registry Keys (Deep System Level)
-            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
-            self.run_command(f"netsh int ipv4 set global curhoplimit={val}")
-            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
-            self.run_command(f"netsh int ipv6 set global curhoplimit={val}")
+            # Using the exact command suggested by user
+            self.run_command(f"netsh int ipv4 set glob defaultcurhoplimit={val}")
+            self.run_command(f"netsh int ipv4 set glob curhoplimit={val}")
+            self.run_command(f"netsh int ipv6 set glob defaultcurhoplimit={val}")
+            self.run_command(f"netsh int ipv6 set glob curhoplimit={val}")
             self.set_windows_registry(val)
         else:
             self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
@@ -175,18 +170,15 @@ class TTLUtilityApp:
     def reset_ttl(self):
         default = "128" if platform.system() == "Windows" else "64"
         self.log(f"Resetting to {default}...")
-        self.apply_custom_ttl_value(default)
-
-    def apply_custom_ttl_value(self, val):
         if platform.system() == "Windows":
-            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
-            self.run_command(f"netsh int ipv4 set global curhoplimit={val}")
-            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
-            self.run_command(f"netsh int ipv6 set global curhoplimit={val}")
-            self.set_windows_registry(val)
+            self.run_command(f"netsh int ipv4 set glob defaultcurhoplimit={default}")
+            self.run_command(f"netsh int ipv4 set glob curhoplimit={default}")
+            self.run_command(f"netsh int ipv6 set glob defaultcurhoplimit={default}")
+            self.run_command(f"netsh int ipv6 set glob curhoplimit={default}")
+            self.set_windows_registry(default)
         else:
-            self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
-            self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}")
+            self.run_command(f"sysctl -w net.inet.ip.ttl={default}")
+            self.run_command(f"sysctl -w net.inet6.ip6.hlim={default}")
         self.log("Reset complete.")
 
     def test_connection(self):
