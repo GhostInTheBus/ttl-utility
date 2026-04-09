@@ -44,9 +44,9 @@ class TTLUtilityApp:
                 import ctypes
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
             elif self.os_type == "Darwin":
-                # Ensure we escape the path to sys.executable correctly
-                args = " ".join([f"'{arg}'" for arg in sys.argv])
-                script = f'do shell script "\'{sys.executable}\' {args}" with administrator privileges'
+                # Use 'quoted form of' in AppleScript for rock-solid path handling
+                args_str = " ".join([f"quoted form of '{arg}'" for arg in sys.argv])
+                script = f'do shell script (quoted form of "{sys.executable}") & " " & {" & \" \" & ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])} with administrator privileges'
                 self.log("Launching AppleScript elevation prompt...")
                 result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
                 if result.returncode != 0:
