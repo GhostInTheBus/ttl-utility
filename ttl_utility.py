@@ -44,11 +44,16 @@ class TTLUtilityApp:
                 import ctypes
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
             elif self.os_type == "Darwin":
-                script = f'do shell script "{sys.executable} {" ".join(sys.argv)}" with administrator privileges'
-                subprocess.run(["osascript", "-e", script], check=True)
-            elif self.os_type == "Linux":
-                os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
-            sys.exit()
+                # Ensure we escape the path to sys.executable correctly
+                args = " ".join([f"'{arg}'" for arg in sys.argv])
+                script = f'do shell script "\'{sys.executable}\' {args}" with administrator privileges'
+                self.log("Launching AppleScript elevation prompt...")
+                result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+                if result.returncode != 0:
+                    self.log(f"AppleScript Error: {result.stderr.strip()}")
+                else:
+                    self.log("Elevation command sent successfully. Restarting...")
+                    sys.exit()
         except subprocess.CalledProcessError:
             self.log("Elevation cancelled by user.")
         except Exception as e:
