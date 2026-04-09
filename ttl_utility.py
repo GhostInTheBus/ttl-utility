@@ -49,11 +49,20 @@ class TTLUtilityApp:
         tk.Label(self.root, text="Verizon TTL Manager", font=("Arial", 16, "bold")).pack(pady=(10, 0))
         tk.Label(self.root, text="Changes TTL so usage registers as phone data, not hotspot.", font=("Arial", 9, "italic"), fg="#555").pack(pady=(0, 10))
         
+        # Custom TTL Input
+        input_frame = tk.Frame(self.root)
+        input_frame.pack(pady=5)
+        tk.Label(input_frame, text="Target TTL:").grid(row=0, column=0, padx=5)
+        self.ttl_entry = tk.Entry(input_frame, width=5)
+        self.ttl_entry.insert(0, "65")
+        self.ttl_entry.grid(row=0, column=1, padx=5)
+        tk.Button(input_frame, text="?", command=self.show_help, width=2).grid(row=0, column=2, padx=5)
+
         # Action Buttons
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=10)
         
-        tk.Button(btn_frame, text="Set TTL to 65", command=self.set_ttl_65, width=20, bg="#4CAF50", fg="white").grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(btn_frame, text="Apply Target TTL", command=self.apply_custom_ttl, width=20, bg="#4CAF50", fg="white").grid(row=0, column=0, padx=5, pady=5)
         tk.Button(btn_frame, text="Reset to Default", command=self.reset_ttl, width=20).grid(row=0, column=1, padx=5, pady=5)
         tk.Button(btn_frame, text="Test Connection (Ping)", command=self.test_connection, width=20, bg="#2196F3", fg="white").grid(row=1, column=0, padx=5, pady=5)
         tk.Button(btn_frame, text="Elevate to Admin", command=self.elevate, width=20).grid(row=1, column=1, padx=5, pady=5)
@@ -62,6 +71,24 @@ class TTLUtilityApp:
         tk.Label(self.root, text="Activity Log:").pack(anchor="w", padx=20)
         self.log_area = scrolledtext.ScrolledText(self.root, height=12, width=55)
         self.log_area.pack(padx=20, pady=5)
+
+    def show_help(self):
+        help_text = (
+            "Why 64 vs 65?\n\n"
+            "64: The standard default for Android/iOS/Linux/macOS.\n\n"
+            "65: Often used because your phone acts as a 'hop'. By starting at 65, "
+            "the packet reaches the carrier with a TTL of 64, making it look exactly "
+            "like it originated from the phone itself.\n\n"
+            "Try 65 first; if it doesn't work, try 64."
+        )
+        messagebox.showinfo("TTL Explained", help_text)
+
+    def apply_custom_ttl(self):
+        target_ttl = self.ttl_entry.get().strip()
+        if not target_ttl.isdigit():
+            messagebox.showerror("Error", "Please enter a valid number for TTL.")
+            return
+        self.set_ttl(target_ttl)
 
     def log(self, message):
         self.log_area.insert(tk.END, f"> {message}\n")
@@ -76,25 +103,28 @@ class TTLUtilityApp:
             self.log(f"Error: {e.stderr.strip()}")
             return None
 
-    def set_ttl_65(self):
+    def set_ttl(self, value):
         if not self.is_admin:
             if messagebox.askyesno("Admin Required", "This action requires administrative privileges. Elevate now?"):
                 self.elevate()
             return
 
-        self.log("Setting TTL to 65...")
+        self.log(f"Setting TTL to {value}...")
         if self.os_type == "Windows":
-            cmd = "netsh int ipv4 set global defaultcurhoplimit=65 store=persistent"
+            cmd = f"netsh int ipv4 set global defaultcurhoplimit={value} store=persistent"
         elif self.os_type == "Darwin":
-            cmd = "sysctl -w net.inet.ip.ttl=65"
+            cmd = f"sysctl -w net.inet.ip.ttl={value}"
         elif self.os_type == "Linux":
-            cmd = "sysctl -w net.ipv4.ip_default_ttl=65"
+            cmd = f"sysctl -w net.ipv4.ip_default_ttl={value}"
         else:
             self.log("Unsupported OS for this operation.")
             return
 
         if self.run_command(cmd) is not None:
-            self.log("Successfully set TTL to 65.")
+            self.log(f"Successfully set TTL to {value}.")
+
+    def set_ttl_65(self):
+        self.set_ttl("65")
 
     def reset_ttl(self):
         if not self.is_admin:
