@@ -14,6 +14,9 @@ Hotspot Unlock effectively transforms your computer into a cell phone in the eye
 4. **Apply:** Click **"Unlock Infinite Plan"**. You will be asked for your password/TouchID to authorize the system change.
 5. **Verify:** Click **"Test Connection"**. If it says "UNLOCK VERIFIED," you are good to go.
 
+> **⚠️ Note for Mac Users:** 
+> Because this is an independent, unsigned utility, macOS may warn you about malware. To open the app: **Right-click** the icon and select **Open**. This bypasses the automatic block.
+
 ## 🛠 The Vision
 Do you have an unlimited phone plan but a limited hotspot plan? This utility makes your hotspot plan unlimited like your phone by masking your computer's TTL signature. It ensures your usage registers against your **phone's regular data plan**, effectively bypassing hotspot data limits and throttling.
 
