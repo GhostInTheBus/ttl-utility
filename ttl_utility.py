@@ -6,15 +6,36 @@ import re
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
-# Global Error Logging
-def log_unhandled_exception(exctype, value, tb):
-    import traceback
-    error_msg = "".join(traceback.format_exception(exctype, value, tb))
-    with open(os.path.expanduser("~/Desktop/ttl_debug_log.txt"), "a") as f:
-        f.write("\n--- CRASH REPORT ---\n" + error_msg + "\n")
-    print(error_msg)
+def is_admin():
+    """Check if the current process has administrative/root privileges."""
+    try:
+        if platform.system() == "Windows":
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        else:
+            return os.getuid() == 0
+    except:
+        return False
 
-sys.excepthook = log_unhandled_exception
+def elevate():
+    """Request administrative privileges and restart the app."""
+    os_type = platform.system()
+    try:
+        if os_type == "Windows":
+            import ctypes
+            params = " ".join([f'"{arg}"' for arg in sys.argv])
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        elif os_type == "Darwin":
+            # Direct osascript elevation for macOS
+            args = " ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])
+            script = f'do shell script "{sys.executable}" & " " & {args} with administrator privileges'
+            subprocess.run(["osascript", "-e", script], check=True)
+        elif os_type == "Linux":
+            os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
+        sys.exit()
+    except Exception as e:
+        print(f"Elevation failed or cancelled: {e}")
+        sys.exit()
 
 class ModernButton(tk.Label):
     def __init__(self, master, text, command=None, bg="#333", fg="white", hover_bg="#444", **kwargs):
@@ -35,12 +56,10 @@ class TTLUtilityApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Cellular TTL Manager")
-        self.root.geometry("540x640")
+        self.root.geometry("540x600")
         self.root.configure(bg="#121212")
         
-        self.os_type = platform.system()
-        self.is_admin = self.check_admin()
-        
+        # Colors
         self.primary_bg = "#121212"
         self.card_bg = "#1e1e1e"
         self.accent_green = "#4CAF50"
@@ -49,32 +68,8 @@ class TTLUtilityApp:
         self.text_main = "#eee"
 
         self.setup_ui()
-        self.log("System Initialized.")
-        self.log(f"Platform: {self.os_type} | Admin: {'Yes' if self.is_admin else 'No'}")
-
-    def check_admin(self):
-        try:
-            if self.os_type == "Windows":
-                import ctypes
-                return ctypes.windll.shell32.IsUserAnAdmin() != 0
-            else:
-                return os.getuid() == 0
-        except: return False
-
-    def elevate(self):
-        self.log("Requesting administrative privileges...")
-        try:
-            if self.os_type == "Windows":
-                import ctypes
-                params = " ".join([f'"{arg}"' for arg in sys.argv])
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
-            elif self.os_type == "Darwin":
-                args = " ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])
-                script = f'do shell script "{sys.executable}" & " " & {args} with administrator privileges'
-                subprocess.run(["osascript", "-e", script], check=True)
-            sys.exit()
-        except Exception as e:
-            self.log(f"Elevation failed: {str(e)}")
+        self.log("System Initialized with Administrator Privileges.")
+        self.log(f"Platform: {platform.system()} | UID: {getattr(os, 'getuid', lambda: 'N/A')()}")
 
     def setup_ui(self):
         header = tk.Frame(self.root, bg=self.primary_bg, pady=20)
@@ -108,11 +103,8 @@ class TTLUtilityApp:
         ModernButton(actions, "TEST CONNECTION", command=self.test_connection, bg=self.accent_blue, hover_bg="#1976D2").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
         ModernButton(actions, "RESET TO DEFAULT", command=self.reset_ttl, bg="#444", hover_bg="#555").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
 
-        if not self.is_admin:
-            ModernButton(self.root, "ELEVATE TO ADMINISTRATOR", command=self.elevate, bg="#b71c1c", hover_bg="#d32f2f").pack(fill=tk.X, padx=20, pady=15)
-
         tk.Label(self.root, text="Activity Log", bg=self.primary_bg, fg=self.text_dim, font=("Arial", 8, "bold")).pack(anchor="w", padx=25, pady=(15, 0))
-        self.log_area = scrolledtext.ScrolledText(self.root, height=8, width=50, bg="#0a0a0a", fg="#4CAF50", font=("Courier", 10), borderwidth=0, padx=10, pady=10)
+        self.log_area = scrolledtext.ScrolledText(self.root, height=10, width=50, bg="#0a0a0a", fg="#4CAF50", font=("Courier", 10), borderwidth=0, padx=10, pady=10)
         self.log_area.pack(fill=tk.BOTH, expand=True, padx=20, pady=(5, 20))
 
     def update_ttl_from_carrier(self, selection):
@@ -123,7 +115,7 @@ class TTLUtilityApp:
             self.log(f"Profile: {selection}")
 
     def show_help(self):
-        msg = "Verizon: 65\nT-Mobile: 64\n\nSets IPv4/v6 Stack + Windows Registry (Double-Tap)."
+        msg = "Verizon: 65\nT-Mobile: 64\n\nSets IPv4/v6 Stack + Windows Registry."
         messagebox.showinfo("Guide", msg)
 
     def log(self, message):
@@ -139,7 +131,6 @@ class TTLUtilityApp:
             return None
 
     def set_windows_registry(self, value):
-        """Takeaway from ttlset-utility: Direct Registry modification for bulletproof persistence."""
         try:
             import winreg
             keys = [
@@ -149,56 +140,43 @@ class TTLUtilityApp:
             for root_key, sub_key in keys:
                 with winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE) as key:
                     winreg.SetValueEx(key, "DefaultTTL", 0, winreg.REG_DWORD, int(value))
-            self.log("Windows Registry 'Double-Tap' complete.")
+            self.log("Registry updated.")
             return True
         except Exception as e:
             self.log(f"Registry Error: {str(e)}")
             return False
 
     def apply_custom_ttl(self):
-        if not self.is_admin:
-            if messagebox.askyesno("Admin Required", "Elevation required. Elevate now?"):
-                self.elevate()
-            return
-            
         val = self.ttl_entry.get().strip()
         if not val.isdigit():
             messagebox.showerror("Error", "Invalid TTL.")
             return
 
-        self.log(f"Applying TTL {val} (Stack + Registry)...")
-        success = True
-        if self.os_type == "Windows":
-            # Stack Apply
-            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
-            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
-            # Registry Apply (The Takeaway)
-            self.set_windows_registry(val)
-        elif self.os_type == "Darwin":
-            success &= self.run_command(f"sysctl -w net.inet.ip.ttl={val}") is not None
-            success &= self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}") is not None
-        
-        if success: self.log("Configuration applied successfully.")
-
-    def reset_ttl(self):
-        if not self.is_admin: return self.log("Elevation required for reset.")
-        default = "128" if self.os_type == "Windows" else "64"
-        self.log(f"Resetting to {default}...")
-        self.apply_custom_ttl_value(default)
-
-    def apply_custom_ttl_value(self, val):
-        if self.os_type == "Windows":
+        self.log(f"Applying TTL {val}...")
+        if platform.system() == "Windows":
             self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
             self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
             self.set_windows_registry(val)
         else:
             self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
             self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}")
+        self.log("Configuration applied.")
+
+    def reset_ttl(self):
+        default = "128" if platform.system() == "Windows" else "64"
+        self.log(f"Resetting to {default}...")
+        if platform.system() == "Windows":
+            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={default} store=persistent")
+            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={default} store=persistent")
+            self.set_windows_registry(default)
+        else:
+            self.run_command(f"sysctl -w net.inet.ip.ttl={default}")
+            self.run_command(f"sysctl -w net.inet6.ip6.hlim={default}")
         self.log("Reset complete.")
 
     def test_connection(self):
         self.log("Testing active TTL...")
-        cmd = "ping -n 1 127.0.0.1" if self.os_type == "Windows" else "ping -c 1 127.0.0.1"
+        cmd = "ping -n 1 127.0.0.1" if platform.system() == "Windows" else "ping -c 1 127.0.0.1"
         out = self.run_command(cmd)
         if out:
             match = re.search(r"ttl=(\d+)", out, re.I)
@@ -208,6 +186,9 @@ class TTLUtilityApp:
                 if curr == self.ttl_entry.get().strip(): self.log("BYPASS VERIFIED.")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = TTLUtilityApp(root)
-    root.mainloop()
+    if not is_admin():
+        elevate()
+    else:
+        root = tk.Tk()
+        app = TTLUtilityApp(root)
+        root.mainloop()
