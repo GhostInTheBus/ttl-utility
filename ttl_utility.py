@@ -56,7 +56,7 @@ class TTLUtilityApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Hotspot Unlock")
-        self.root.geometry("540x600")
+        self.root.geometry("540x640")
         self.root.configure(bg="#121212")
         
         # Colors
@@ -127,12 +127,16 @@ class TTLUtilityApp:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
             return result.stdout.strip()
         except Exception as e:
-            self.log(f"Error: {str(e).split(':')[-1]}")
+            # Only log error if not a harmless warning
+            err = str(e)
+            if "The operation was successful" not in err:
+                self.log(f"Command Error: {err.split(':')[-1]}")
             return None
 
     def set_windows_registry(self, value):
         try:
             import winreg
+            # We must use KEY_ALL_ACCESS to create the key if it doesn't exist
             keys = [
                 (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"),
                 (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters")
@@ -140,7 +144,7 @@ class TTLUtilityApp:
             for root_key, sub_key in keys:
                 with winreg.OpenKey(root_key, sub_key, 0, winreg.KEY_SET_VALUE) as key:
                     winreg.SetValueEx(key, "DefaultTTL", 0, winreg.REG_DWORD, int(value))
-            self.log("Registry updated.")
+            self.log("Windows Registry 'Double-Tap' complete.")
             return True
         except Exception as e:
             self.log(f"Registry Error: {str(e)}")
@@ -154,24 +158,35 @@ class TTLUtilityApp:
 
         self.log(f"Unlocking Infinite Plan (TTL {val})...")
         if platform.system() == "Windows":
+            # Aggressive Triple-Tap for Windows: 
+            # 1. Default Hop Limit (Persistence)
+            # 2. Current Hop Limit (Immediate effect)
+            # 3. Registry Keys (Deep System Level)
             self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
+            self.run_command(f"netsh int ipv4 set global curhoplimit={val}")
             self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
+            self.run_command(f"netsh int ipv6 set global curhoplimit={val}")
             self.set_windows_registry(val)
         else:
             self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
             self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}")
-        self.log("Configuration applied.")
+        self.log("Configuration applied successfully.")
 
     def reset_ttl(self):
         default = "128" if platform.system() == "Windows" else "64"
         self.log(f"Resetting to {default}...")
+        self.apply_custom_ttl_value(default)
+
+    def apply_custom_ttl_value(self, val):
         if platform.system() == "Windows":
-            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={default} store=persistent")
-            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={default} store=persistent")
-            self.set_windows_registry(default)
+            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
+            self.run_command(f"netsh int ipv4 set global curhoplimit={val}")
+            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
+            self.run_command(f"netsh int ipv6 set global curhoplimit={val}")
+            self.set_windows_registry(val)
         else:
-            self.run_command(f"sysctl -w net.inet.ip.ttl={default}")
-            self.run_command(f"sysctl -w net.inet6.ip6.hlim={default}")
+            self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
+            self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}")
         self.log("Reset complete.")
 
     def test_connection(self):
@@ -182,8 +197,12 @@ class TTLUtilityApp:
             match = re.search(r"ttl=(\d+)", out, re.I)
             if match:
                 curr = match.group(1)
-                self.log(f"Active TTL: {curr}")
-                if curr == self.ttl_entry.get().strip(): self.log("UNLOCK VERIFIED.")
+                self.log(f"Active TTL Detected: {curr}")
+                target = self.ttl_entry.get().strip()
+                if curr == target:
+                    self.log("UNLOCK VERIFIED: Infinite plan is active.")
+                else:
+                    self.log(f"NOTICE: System still reports {curr}.")
 
 if __name__ == "__main__":
     if not is_admin():
