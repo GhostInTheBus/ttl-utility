@@ -17,11 +17,13 @@ class TTLUtilityApp:
         
         self.setup_ui()
         self.log("Universal Cellular TTL Manager (Vibe Coded)")
-        self.log(f"Detected OS: {self.os_type}")
-        self.log(f"Admin Privileges: {'Yes' if self.is_admin else 'No'}")
+        self.log(f"OS: {self.os_type} | UID: {getattr(os, 'getuid', lambda: 'N/A')()}")
+        self.log(f"Admin Access Granted: {'Yes' if self.is_admin else 'No'}")
         
-        if not self.is_admin:
-            self.log("WARNING: Certain features require administrative privileges.")
+        if self.is_admin:
+            self.log("Ready to apply system-level changes.")
+        else:
+            self.log("Limited access. Please use 'Elevate to Admin' for full features.")
 
     def check_admin(self):
         """Check if the current process has administrative/root privileges."""
@@ -36,12 +38,21 @@ class TTLUtilityApp:
 
     def elevate(self):
         """Re-run the script with administrative privileges."""
-        if self.os_type == "Windows":
-            import ctypes
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
-        elif self.os_type in ["Darwin", "Linux"]:
-            os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
-        sys.exit()
+        self.log("Requesting administrative elevation...")
+        try:
+            if self.os_type == "Windows":
+                import ctypes
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+            elif self.os_type == "Darwin":
+                script = f'do shell script "{sys.executable} {" ".join(sys.argv)}" with administrator privileges'
+                subprocess.run(["osascript", "-e", script], check=True)
+            elif self.os_type == "Linux":
+                os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
+            sys.exit()
+        except subprocess.CalledProcessError:
+            self.log("Elevation cancelled by user.")
+        except Exception as e:
+            self.log(f"Elevation Error: {str(e)}")
 
     def setup_ui(self):
         # Header
