@@ -112,7 +112,7 @@ class TTLUtilityApp:
 
         # Main Action Button (Hero Button)
         self.apply_btn = ttk.Button(main_frame, text="Apply Infinite Plan (IPv4 + IPv6)", command=self.apply_custom_ttl)
-        self.apply_btn.pack(fill=tk.X, pady=15, ipady=5)
+        self.apply_btn.pack(fill=tk.X, pady=15)
 
         # Secondary Actions
         action_frame = ttk.Frame(main_frame)
