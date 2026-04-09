@@ -1,59 +1,21 @@
-# Cellular TTL Utility (Verizon/T-Mobile Bypass)
+# Cellular TTL Manager
+**Bypass Hotspot Limits on Verizon & T-Mobile**
 
-A cross-platform desktop application to modify the system's default Time-to-Live (TTL) value. This is optimized for **Verizon** (TTL 65) and **T-Mobile** (TTL 64) users to manage hotspot data usage limits.
+This utility allows your computer to share your phone's regular data plan instead of being restricted by hotspot caps. It works by adjusting your system's "TTL" (Time-to-Live) settings to match your phone's internal signature.
 
-*Disclosure: This project was **vibe coded** with the assistance of AI.*
+## 🚀 Quick Start
+1. **Download:** Get the latest version from the [Releases](https://github.com/GhostInTheBus/ttl-utility/releases) page.
+2. **Run:** 
+   - **Mac:** Double-click `CellularTTL`. (If it blocks you, **Right-click > Open**).
+   - **Windows:** Double-click `CellularTTL.exe`.
+3. **Select Carrier:**
+   - **Verizon / Visible:** Use **65**.
+   - **T-Mobile / Metro:** Use **64**.
+4. **Apply:** Click **"Apply Target TTL"**. You will be asked for your password/TouchID to confirm the system change.
+5. **Verify:** Click **"Test Connection"**. If it says "CONFIRMED," you are good to go.
 
-## What this does (Layman's Terms)
-This tool changes your computer's "TTL" (Time-to-Live) setting so that your internet traffic looks like it is coming directly from your phone rather than from a tethered hotspot. This helps ensure your usage registers against your **phone's regular data plan** instead of being throttled or capped by your **hotspot data limit**.
+## 🛠 Why this works (The Vibe)
+Most carriers track hotspot usage by looking for a specific "TTL" number in your data. Computers usually send a different number than phones. This tool makes your computer "whisper" the same number as your phone, so the carrier registers the data as coming from the device in your hand, not the laptop on your desk.
 
-- **Use 65** for Verizon / Visible.
-- **Use 64** for T-Mobile / Metro.
-
-## Features
-- **One-Click TTL Modification:** Sets TTL to 65 across Windows, macOS, and Linux.
-- **Admin Privilege Management:** Automatically detects and requests administrative/root elevation when needed.
-- **Connection Testing:** Built-in "Test Connection" tool that pings localhost and parses the actual active TTL from the response.
-- **Safety Reset:** "Reset to Default" button to return system TTL to factory settings (128 for Windows, 64 for Unix-like).
-
-## Architecture & OS Interaction
-The application acts as a GUI wrapper for system-level networking commands:
-- **Windows:** Interacts with the `netsh` utility to set `defaultcurhoplimit` persistently in the IPv4 stack.
-- **macOS/Linux:** Uses the `sysctl` interface to modify kernel parameters (`net.inet.ip.ttl` or `net.ipv4.ip_default_ttl`) in real-time.
-
-## Installation & Requirements
-- **Python 3.6+**
-- **Tkinter** (usually included with Python; on Linux, you may need `sudo apt-get install python3-tk`).
-
-### Run from Source
-```bash
-python ttl_utility.py
-```
-
-## Releases & Automated Builds
-This repository is configured with **GitHub Actions**. To automatically create an official release with downloadable `.exe` and `.app` files:
-
-1. Tag your code: `git tag v1.0.0`
-2. Push the tag: `git push origin v1.0.0`
-3. Check the **Releases** tab on GitHub for the generated binaries.
-
-## Manual Compilation
-If you prefer to build locally, use **PyInstaller**:
-
-1. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-
-2. Generate the executable:
-   ```bash
-   # For Windows/Linux (single file, no console)
-   pyinstaller --onefile --noconsole ttl_utility.py
-
-   # For macOS (creates a .app bundle)
-   pyinstaller --windowed --onefile ttl_utility.py
-   ```
-   The finished executable will be in the `dist/` folder.
-
-## Security
-This application requires administrative privileges to modify system networking parameters. Use with caution.
+## 📜 License
+This tool is open-source under the MIT License. Vibe coded by Gemini CLI.
