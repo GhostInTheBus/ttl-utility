@@ -46,7 +46,7 @@ class TTLUtilityApp:
     def setup_ui(self):
         # Header
         tk.Label(self.root, text="Cellular TTL Manager", font=("Arial", 16, "bold")).pack(pady=(10, 0))
-        tk.Label(self.root, text="Bypass limits for Verizon (65) and T-Mobile (64).", font=("Arial", 9, "italic"), fg="#555").pack(pady=(0, 10))
+        tk.Label(self.root, text="Turns your hotspot into an infinite phone plan.", font=("Arial", 9, "italic"), fg="#4CAF50").pack(pady=(0, 10))
         
         # Custom TTL Input
         input_frame = tk.Frame(self.root)

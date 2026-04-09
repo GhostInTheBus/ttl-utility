@@ -14,8 +14,14 @@ This utility allows your computer to share your phone's regular data plan instea
 4. **Apply:** Click **"Apply Target TTL"**. You will be asked for your password/TouchID to confirm the system change.
 5. **Verify:** Click **"Test Connection"**. If it says "CONFIRMED," you are good to go.
 
-## 🛠 Why this works (The Vibe)
+## 🛠 The Vision: Your Computer is now a Phone
+This application effectively turns your computer into a cell phone in the eyes of your carrier. By synchronizing your system's identity, you can use your **primary mobile data plan** instead of a restricted hotspot plan—turning a limited connection into an **infinite phone plan experience**.
+
+## Why this works (The Vibe)
 Most carriers track hotspot usage by looking for a specific "TTL" number in your data. Computers usually send a different number than phones. This tool makes your computer "whisper" the same number as your phone, so the carrier registers the data as coming from the device in your hand, not the laptop on your desk.
+
+- **Use 65** for Verizon / Visible.
+- **Use 64** for T-Mobile / Metro.
 
 ## 📜 License
 This tool is open-source under the MIT License. Vibe coded by Gemini CLI.
