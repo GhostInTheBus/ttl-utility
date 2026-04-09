@@ -6,11 +6,21 @@ import re
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
+# Global Error Logging
+def log_unhandled_exception(exctype, value, tb):
+    import traceback
+    error_msg = "".join(traceback.format_exception(exctype, value, tb))
+    with open(os.path.expanduser("~/Desktop/ttl_debug_log.txt"), "a") as f:
+        f.write("\n--- CRASH REPORT ---\n" + error_msg + "\n")
+    print(error_msg)
+
+sys.excepthook = log_unhandled_exception
+
 class ModernButton(tk.Label):
-    """A custom modern button using tk.Label to support full colors on macOS."""
+    """Custom button using Label for perfect macOS color support."""
     def __init__(self, master, text, command=None, bg="#333", fg="white", hover_bg="#444", **kwargs):
-        super().__init__(master, text=text, bg=bg, fg=fg, font=("SF Pro Text", 10, "bold"), 
-                         padx=15, pady=8, cursor="hand2", **kwargs)
+        super().__init__(master, text=text, bg=bg, fg=fg, font=("Arial", 10, "bold"), 
+                         padx=15, pady=8, cursor="hand2", relief="flat", **kwargs)
         self.command = command
         self.bg = bg
         self.hover_bg = hover_bg
@@ -26,7 +36,7 @@ class TTLUtilityApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Cellular TTL Manager")
-        self.root.geometry("540x600")
+        self.root.geometry("540x620")
         self.root.configure(bg="#121212")
         
         self.os_type = platform.system()
@@ -41,9 +51,8 @@ class TTLUtilityApp:
         self.text_main = "#eee"
 
         self.setup_ui()
-        self.log("Cellular TTL Manager (Infinite Plan Vision)")
-        self.log(f"OS: {self.os_type} | UID: {getattr(os, 'getuid', lambda: 'N/A')()}")
-        self.log(f"Admin Status: {'Authorized' if self.is_admin else 'Limited'}")
+        self.log("System Initialized.")
+        self.log(f"Platform: {self.os_type} | Admin: {'Yes' if self.is_admin else 'No'}")
 
     def check_admin(self):
         try:
@@ -52,82 +61,77 @@ class TTLUtilityApp:
                 return ctypes.windll.shell32.IsUserAnAdmin() != 0
             else:
                 return os.getuid() == 0
-        except: return False
+        except:
+            return False
 
     def elevate(self):
-        self.log("Requesting administrative elevation...")
+        self.log("Requesting administrative privileges...")
         try:
             if self.os_type == "Windows":
                 import ctypes
                 params = " ".join([f'"{arg}"' for arg in sys.argv])
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
             elif self.os_type == "Darwin":
-                script = f'do shell script (quoted form of "{sys.executable}") & " " & {" & \" \" & ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])} with administrator privileges'
+                # Most robust macOS elevation script
+                args = " ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])
+                script = f'do shell script (quoted form of "{sys.executable}") & " " & {args} with administrator privileges'
                 subprocess.run(["osascript", "-e", script], check=True)
             sys.exit()
-        except: self.log("Elevation Error or Cancelled.")
+        except Exception as e:
+            self.log(f"Elevation failed: {str(e)}")
 
     def setup_ui(self):
         # Header Section
         header = tk.Frame(self.root, bg=self.primary_bg, pady=20)
         header.pack(fill=tk.X)
         
-        tk.Label(header, text="CELLULAR TTL", font=("SF Pro Display", 24, "bold"), 
+        tk.Label(header, text="CELLULAR TTL", font=("Arial", 24, "bold"), 
                  bg=self.primary_bg, fg=self.accent_green).pack()
-        tk.Label(header, text="Infinite Phone Plan Experience", font=("SF Pro Text", 10, "italic"), 
+        tk.Label(header, text="The Infinite Phone Plan Utility", font=("Arial", 10, "italic"), 
                  bg=self.primary_bg, fg=self.text_dim).pack()
-
-        # Admin Warning (if not admin)
-        if not self.is_admin:
-            warning = tk.Frame(self.root, bg="#331a00", pady=5)
-            warning.pack(fill=tk.X)
-            tk.Label(warning, text="⚠️ Admin Elevation Required for TTL Changes", bg="#331a00", fg="#ff9800", font=("SF Pro Text", 9, "bold")).pack()
 
         # Configuration Card
         card = tk.Frame(self.root, bg=self.card_bg, padx=20, pady=20, highlightbackground="#333", highlightthickness=1)
         card.pack(fill=tk.X, padx=20, pady=10)
 
-        # Carrier Row
-        tk.Label(card, text="Carrier Profile", bg=self.card_bg, fg=self.text_dim, font=("SF Pro Text", 9, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(card, text="Select Carrier Profile", bg=self.card_bg, fg=self.text_dim, font=("Arial", 9, "bold")).pack(anchor="w")
         
         self.carrier_var = tk.StringVar(self.root)
         self.carrier_var.set("Verizon / Visible (65)")
         self.carriers = {"Verizon / Visible (65)": "65", "T-Mobile / Metro (64)": "64", "Custom": ""}
         
         self.carrier_menu = tk.OptionMenu(card, self.carrier_var, *self.carriers.keys(), command=self.update_ttl_from_carrier)
-        self.carrier_menu.config(bg=self.card_bg, fg=self.text_main, width=22, highlightthickness=0)
-        self.carrier_menu.grid(row=1, column=0, pady=(5, 15), sticky="w")
+        self.carrier_menu.config(bg=self.card_bg, fg=self.text_main, width=25, highlightthickness=0)
+        self.carrier_menu.pack(anchor="w", pady=(5, 15))
 
-        # TTL Row
-        tk.Label(card, text="Target TTL Value", bg=self.card_bg, fg=self.text_dim, font=("SF Pro Text", 9, "bold")).grid(row=2, column=0, sticky="w")
+        tk.Label(card, text="Target TTL Value", bg=self.card_bg, fg=self.text_dim, font=("Arial", 9, "bold")).pack(anchor="w")
         
         ttl_entry_frame = tk.Frame(card, bg=self.card_bg)
-        ttl_entry_frame.grid(row=3, column=0, sticky="w", pady=(5, 0))
+        ttl_entry_frame.pack(anchor="w", pady=(5, 0))
         
-        self.ttl_entry = tk.Entry(ttl_entry_frame, width=8, bg="#333", fg="white", insertbackground="white", relief="flat", borderwidth=5)
+        self.ttl_entry = tk.Entry(ttl_entry_frame, width=10, bg="#333", fg="white", insertbackground="white", relief="flat")
         self.ttl_entry.insert(0, "65")
-        self.ttl_entry.pack(side=tk.LEFT)
+        self.ttl_entry.pack(side=tk.LEFT, ipady=3)
         
-        ModernButton(ttl_entry_frame, "?", command=self.show_help, bg="#444", hover_bg="#555", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=10)
+        ModernButton(ttl_entry_frame, "?", command=self.show_help, bg="#444", hover_bg="#555").pack(side=tk.LEFT, padx=10)
 
-        # Main Action Button (Hero)
+        # Main Action Buttons
         ModernButton(self.root, "APPLY INFINITE PLAN", command=self.apply_custom_ttl, 
                      bg=self.accent_green, hover_bg="#3d8b40").pack(fill=tk.X, padx=20, pady=15)
 
-        # Secondary Actions Row
         actions = tk.Frame(self.root, bg=self.primary_bg)
         actions.pack(fill=tk.X, padx=20)
         
         ModernButton(actions, "TEST CONNECTION", command=self.test_connection, bg=self.accent_blue, hover_bg="#1976D2").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
-        ModernButton(actions, "RESET DEFAULT", command=self.reset_ttl, bg="#444", hover_bg="#555").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
+        ModernButton(actions, "RESET TO DEFAULT", command=self.reset_ttl, bg="#444", hover_bg="#555").pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(5, 0))
 
         if not self.is_admin:
-            ModernButton(self.root, "ELEVATE TO ADMINISTRATOR", command=self.elevate, bg="#8d2b2b", hover_bg="#a93232").pack(fill=tk.X, padx=20, pady=10)
+            ModernButton(self.root, "ELEVATE TO ADMINISTRATOR", command=self.elevate, bg="#b71c1c", hover_bg="#d32f2f").pack(fill=tk.X, padx=20, pady=15)
 
-        # Log Console
-        tk.Label(self.root, text="System Console Output", bg=self.primary_bg, fg=self.text_dim, font=("SF Pro Text", 8, "bold")).pack(anchor="w", padx=25, pady=(20, 0))
+        # Console
+        tk.Label(self.root, text="Activity Log", bg=self.primary_bg, fg=self.text_dim, font=("Arial", 8, "bold")).pack(anchor="w", padx=25, pady=(15, 0))
         self.log_area = scrolledtext.ScrolledText(self.root, height=8, width=50, bg="#0a0a0a", fg="#4CAF50", 
-                                                 font=("Monaco", 9), borderwidth=0, padx=10, pady=10)
+                                                 font=("Courier", 10), borderwidth=0, padx=10, pady=10)
         self.log_area.pack(fill=tk.BOTH, expand=True, padx=20, pady=(5, 20))
 
     def update_ttl_from_carrier(self, selection):
@@ -135,59 +139,75 @@ class TTLUtilityApp:
         if value:
             self.ttl_entry.delete(0, tk.END)
             self.ttl_entry.insert(0, value)
-            self.log(f"Profile Loaded: {selection}")
+            self.log(f"Profile: {selection}")
 
     def show_help(self):
-        msg = "64: Standard Mobile (T-Mobile)\n65: Hop Adjusted (Verizon)\n\nThis app sets IPv4 and IPv6."
-        messagebox.showinfo("TTL Guide", msg)
-
-    def apply_custom_ttl(self):
-        val = self.ttl_entry.get().strip()
-        if val.isdigit(): self.set_ttl(val)
-        else: messagebox.showerror("Error", "Invalid TTL Value")
+        msg = "Verizon: 65\nT-Mobile: 64\n\nSets both IPv4 and IPv6 stacks."
+        messagebox.showinfo("Guide", msg)
 
     def log(self, message):
-        self.log_area.insert(tk.END, f"[system] {message}\n")
+        self.log_area.insert(tk.END, f"> {message}\n")
         self.log_area.see(tk.END)
 
     def run_command(self, cmd):
         try:
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
-            return res.stdout.strip()
-        except: return None
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+            return result.stdout.strip()
+        except Exception as e:
+            self.log(f"Error: {str(e).split(':')[-1]}")
+            return None
 
-    def set_ttl(self, value):
+    def apply_custom_ttl(self):
         if not self.is_admin:
-            if messagebox.askyesno("Elevate?", "Administrative access required. Elevate now?"):
+            if messagebox.askyesno("Admin Required", "This action requires elevation. Elevate now?"):
                 self.elevate()
             return
+            
+        val = self.ttl_entry.get().strip()
+        if not val.isdigit():
+            messagebox.showerror("Error", "Invalid TTL number.")
+            return
 
-        self.log(f"Configuring IPv4/IPv6 Stacks to TTL {value}...")
-        cmds = []
+        self.log(f"Applying TTL {val} to system stacks...")
+        success = True
         if self.os_type == "Windows":
-            cmds.append(f"netsh int ipv4 set global defaultcurhoplimit={value} store=persistent")
-            cmds.append(f"netsh int ipv6 set global defaultcurhoplimit={value} store=persistent")
+            success &= self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent") is not None
+            success &= self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent") is not None
         elif self.os_type == "Darwin":
-            cmds.append(f"sysctl -w net.inet.ip.ttl={value}")
-            cmds.append(f"sysctl -w net.inet6.ip6.hlim={value}")
+            success &= self.run_command(f"sysctl -w net.inet.ip.ttl={val}") is not None
+            success &= self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}") is not None
         
-        for c in cmds: self.run_command(c)
-        self.log(f"TTL {value} applied successfully.")
+        if success:
+            self.log("Configuration applied successfully.")
 
     def reset_ttl(self):
-        if not self.is_admin: return self.log("Admin required for reset.")
-        self.set_ttl("128" if self.os_type == "Windows" else "64")
+        if not self.is_admin:
+            self.log("Elevation required for reset.")
+            return
+        default = "128" if self.os_type == "Windows" else "64"
+        self.log(f"Resetting to {default}...")
+        self.set_ttl_value(default)
+
+    def set_ttl_value(self, val):
+        if self.os_type == "Windows":
+            self.run_command(f"netsh int ipv4 set global defaultcurhoplimit={val} store=persistent")
+            self.run_command(f"netsh int ipv6 set global defaultcurhoplimit={val} store=persistent")
+        else:
+            self.run_command(f"sysctl -w net.inet.ip.ttl={val}")
+            self.run_command(f"sysctl -w net.inet6.ip6.hlim={val}")
+        self.log("Reset complete.")
 
     def test_connection(self):
-        self.log("Pinging local stack...")
+        self.log("Testing active TTL...")
         cmd = "ping -n 1 127.0.0.1" if self.os_type == "Windows" else "ping -c 1 127.0.0.1"
         out = self.run_command(cmd)
         if out:
-            m = re.search(r"ttl=(\d+)", out, re.I)
-            if m:
-                curr = m.group(1)
-                self.log(f"Connection Live. Active TTL: {curr}")
-                if curr == self.ttl_entry.get(): self.log("BYPASS CONFIRMED.")
+            match = re.search(r"ttl=(\d+)", out, re.I)
+            if match:
+                curr = match.group(1)
+                self.log(f"Active TTL: {curr}")
+                if curr == self.ttl_entry.get().strip():
+                    self.log("BYPASS VERIFIED: Infinite plan is active.")
 
 if __name__ == "__main__":
     root = tk.Tk()
