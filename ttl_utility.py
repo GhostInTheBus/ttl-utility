@@ -46,7 +46,14 @@ class TTLUtilityApp:
         try:
             if self.os_type == "Windows":
                 import ctypes
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+                # ShellExecuteW with 'runas' is the standard way to trigger UAC on Windows
+                params = " ".join([f'"{arg}"' for arg in sys.argv])
+                result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+                if result <= 32:
+                    self.log(f"Windows UAC Error Code: {result}")
+                else:
+                    self.log("UAC prompt triggered. Restarting...")
+                    sys.exit()
             elif self.os_type == "Darwin":
                 # Use 'quoted form of' in AppleScript for rock-solid path handling
                 script = f'do shell script (quoted form of "{sys.executable}") & " " & {" & \" \" & ".join([f"quoted form of \"{arg}\"" for arg in sys.argv])} with administrator privileges'
