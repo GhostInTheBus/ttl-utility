@@ -47,7 +47,24 @@ class TTLUtilityApp:
         # Header
         tk.Label(self.root, text="Cellular TTL Manager", font=("Arial", 16, "bold")).pack(pady=(10, 0))
         tk.Label(self.root, text="Turns your hotspot into an infinite phone plan.", font=("Arial", 9, "italic"), fg="#4CAF50").pack(pady=(0, 10))
-        
+
+        # Carrier Selection Dropdown
+        carrier_frame = tk.Frame(self.root)
+        carrier_frame.pack(pady=5)
+        tk.Label(carrier_frame, text="Select Carrier:").grid(row=0, column=0, padx=5)
+
+        self.carrier_var = tk.StringVar(self.root)
+        self.carrier_var.set("Verizon / Visible (65)") # Default
+        self.carriers = {
+            "Verizon / Visible (65)": "65",
+            "T-Mobile / Metro (64)": "64",
+            "Custom": ""
+        }
+
+        self.carrier_menu = tk.OptionMenu(carrier_frame, self.carrier_var, *self.carriers.keys(), command=self.update_ttl_from_carrier)
+        self.carrier_menu.config(width=20)
+        self.carrier_menu.grid(row=0, column=1, padx=5)
+
         # Custom TTL Input
         input_frame = tk.Frame(self.root)
         input_frame.pack(pady=5)
@@ -60,7 +77,7 @@ class TTLUtilityApp:
         # Action Buttons
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=10)
-        
+
         tk.Button(btn_frame, text="Apply Target TTL (IPv4+v6)", command=self.apply_custom_ttl, width=25, bg="#4CAF50", fg="white").grid(row=0, column=0, columnspan=2, padx=5, pady=5)
         tk.Button(btn_frame, text="Reset to Default", command=self.reset_ttl, width=20).grid(row=1, column=0, padx=5, pady=5)
         tk.Button(btn_frame, text="Test Connection (Ping)", command=self.test_connection, width=20, bg="#2196F3", fg="white").grid(row=1, column=1, padx=5, pady=5)
@@ -70,6 +87,13 @@ class TTLUtilityApp:
         tk.Label(self.root, text="Activity Log:").pack(anchor="w", padx=20)
         self.log_area = scrolledtext.ScrolledText(self.root, height=12, width=55)
         self.log_area.pack(padx=20, pady=5)
+
+    def update_ttl_from_carrier(self, selection):
+        value = self.carriers.get(selection)
+        if value:
+            self.ttl_entry.delete(0, tk.END)
+            self.ttl_entry.insert(0, value)
+            self.log(f"Switched to {selection} configuration.")
 
     def show_help(self):
         help_text = (
